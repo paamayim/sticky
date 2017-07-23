@@ -26,6 +26,7 @@
     var splice = Array.prototype.splice; // save ref to original slice()
 
   var defaults = {
+      stickTo: 'top',
       topSpacing: 0,
       bottomSpacing: 0,
       className: 'is-sticky',
@@ -47,88 +48,180 @@
         extra = (scrollTop > dwh) ? dwh - scrollTop : 0;
 
       for (var i = 0, l = sticked.length; i < l; i++) {
-        var s = sticked[i],
-          elementTop = s.stickyWrapper.offset().top,
-          etse = elementTop - s.topSpacing - extra;
+        var s = sticked[i];
 
-        //update height in case of dynamic content
-        s.stickyWrapper.css('height', s.stickyElement.outerHeight());
+        if(s.stickTo=='top'){
+          var 
+            elementTop = s.stickyWrapper.offset().top,
+            etse = elementTop - s.topSpacing - extra;
 
-        if (scrollTop <= etse) {
-          if (s.currentTop !== null) {
-            s.stickyElement
-              .css({
-                'width': '',
-                'position': '',
-                'top': '',
-                'z-index': ''
-              });
-            s.stickyElement.parent().removeClass(s.className);
-            s.stickyElement.trigger('sticky-end', [s]);
-            s.currentTop = null;
-          }
-        }
-        else {
-          var newTop = documentHeight - s.stickyElement.outerHeight()
-            - s.topSpacing - s.bottomSpacing - scrollTop - extra;
-          if (newTop < 0) {
-            newTop = newTop + s.topSpacing;
-          } else {
-            newTop = s.topSpacing;
-          }
-          if (s.currentTop !== newTop) {
-            var newWidth;
-            if (s.getWidthFrom) {
-                padding =  s.stickyElement.innerWidth() - s.stickyElement.width();
-                newWidth = $(s.getWidthFrom).width() - padding || null;
-            } else if (s.widthFromWrapper) {
-                newWidth = s.stickyWrapper.width();
+          //update height in case of dynamic content
+          s.stickyWrapper.css('height', s.stickyElement.outerHeight());
+
+          if (scrollTop <= etse) {
+            if (s.currentTop !== null) {
+              s.stickyElement
+                .css({
+                  'width': '',
+                  'position': '',
+                  'top': '',
+                  'bottom': '',
+                  'z-index': ''
+                });
+              s.stickyElement.parent().removeClass(s.className);
+              s.stickyElement.trigger('sticky-end', [s]);
+              s.currentTop = null;
             }
-            if (newWidth == null) {
-                newWidth = s.stickyElement.width();
-            }
-            s.stickyElement
-              .css('width', newWidth)
-              .css('position', 'fixed')
-              .css('top', newTop)
-              .css('z-index', s.zIndex);
-
-            s.stickyElement.parent().addClass(s.className);
-
-            if (s.currentTop === null) {
-              s.stickyElement.trigger('sticky-start', [s]);
+          }
+          else {
+            var newTop = documentHeight - s.stickyElement.outerHeight()
+              - s.topSpacing - s.bottomSpacing - scrollTop - extra;
+            if (newTop < 0) {
+              newTop = newTop + s.topSpacing;
             } else {
-              // sticky is started but it have to be repositioned
-              s.stickyElement.trigger('sticky-update', [s]);
+              newTop = s.topSpacing;
+            }
+            if (s.currentTop !== newTop) {
+              var newWidth;
+              if (s.getWidthFrom) {
+                  padding =  s.stickyElement.innerWidth() - s.stickyElement.width();
+                  newWidth = $(s.getWidthFrom).width() - padding || null;
+              } else if (s.widthFromWrapper) {
+                  newWidth = s.stickyWrapper.width();
+              }
+              if (newWidth == null) {
+                  newWidth = s.stickyElement.width();
+              }
+              s.stickyElement
+                .css('width', newWidth)
+                .css('position', 'fixed')
+                .css('top', newTop)
+                .css('z-index', s.zIndex);
+
+              s.stickyElement.parent().addClass(s.className);
+
+              if (s.currentTop === null) {
+                s.stickyElement.trigger('sticky-start', [s]);
+              } else {
+                // sticky is started but it have to be repositioned
+                s.stickyElement.trigger('sticky-update', [s]);
+              }
+
+              if (s.currentTop === s.topSpacing && s.currentTop > newTop || s.currentTop === null && newTop < s.topSpacing) {
+                // just reached bottom || just started to stick but bottom is already reached
+                s.stickyElement.trigger('sticky-bottom-reached', [s]);
+              } else if(s.currentTop !== null && newTop === s.topSpacing && s.currentTop < newTop) {
+                // sticky is started && sticked at topSpacing && overflowing from top just finished
+                s.stickyElement.trigger('sticky-bottom-unreached', [s]);
+              }
+
+              s.currentTop = newTop;
             }
 
-            if (s.currentTop === s.topSpacing && s.currentTop > newTop || s.currentTop === null && newTop < s.topSpacing) {
-              // just reached bottom || just started to stick but bottom is already reached
-              s.stickyElement.trigger('sticky-bottom-reached', [s]);
-            } else if(s.currentTop !== null && newTop === s.topSpacing && s.currentTop < newTop) {
-              // sticky is started && sticked at topSpacing && overflowing from top just finished
-              s.stickyElement.trigger('sticky-bottom-unreached', [s]);
-            }
+            // Check if sticky has reached end of container and stop sticking
+            var stickyWrapperContainer = s.stickyWrapper.parent();
+            var unstick = (s.stickyElement.offset().top + s.stickyElement.outerHeight() >= stickyWrapperContainer.offset().top + stickyWrapperContainer.outerHeight()) && (s.stickyElement.offset().top <= s.topSpacing);
 
-            s.currentTop = newTop;
+            if( unstick ) {
+              s.stickyElement
+                .css('position', 'absolute')
+                .css('top', '')
+                .css('bottom', 0)
+                .css('z-index', '');
+            } else {
+              s.stickyElement
+                .css('position', 'fixed')
+                .css('top', newTop)
+                .css('bottom', '')
+                .css('z-index', s.zIndex);
+            }
           }
+        } else {
+          var 
+            elementBottom = s.stickyWrapper.offset().top + s.stickyElement.outerHeight(),
+            etse = elementBottom - s.bottomSpacing - extra;
 
-          // Check if sticky has reached end of container and stop sticking
-          var stickyWrapperContainer = s.stickyWrapper.parent();
-          var unstick = (s.stickyElement.offset().top + s.stickyElement.outerHeight() >= stickyWrapperContainer.offset().top + stickyWrapperContainer.outerHeight()) && (s.stickyElement.offset().top <= s.topSpacing);
+          //update height in case of dynamic content
+          s.stickyWrapper.css('height', s.stickyElement.outerHeight());
 
-          if( unstick ) {
-            s.stickyElement
-              .css('position', 'absolute')
-              .css('top', '')
-              .css('bottom', 0)
-              .css('z-index', '');
-          } else {
-            s.stickyElement
-              .css('position', 'fixed')
-              .css('top', newTop)
-              .css('bottom', '')
-              .css('z-index', s.zIndex);
+          windowHeight = $window.height();
+          if (scrollTop + windowHeight >= etse) {
+            if (s.currentBottom !== null) {
+              s.stickyElement
+                .css({
+                  'width': '',
+                  'position': '',
+                  'top': '',
+                  'bottom': '',
+                  'z-index': ''
+                });
+              s.stickyElement.parent().removeClass(s.className);
+              s.stickyElement.trigger('sticky-end', [s]);
+              s.currentBottom = null;
+            }
+          }
+          else {
+            var newBottom = documentHeight - s.stickyElement.outerHeight()
+              - s.bottomSpacing - s.bottomSpacing - scrollTop + windowHeight - extra;
+            if (newBottom < 0) {
+              newBottom = newBottom + s.bottomSpacing;
+            } else {
+              newBottom = s.bottomSpacing;
+            }
+            if (s.currentBottom !== newBottom) {
+              var newWidth;
+              if (s.getWidthFrom) {
+                  padding =  s.stickyElement.innerWidth() - s.stickyElement.width();
+                  newWidth = $(s.getWidthFrom).width() - padding || null;
+              } else if (s.widthFromWrapper) {
+                  newWidth = s.stickyWrapper.width();
+              }
+              if (newWidth == null) {
+                  newWidth = s.stickyElement.width();
+              }
+              s.stickyElement
+                .css('width', newWidth)
+                .css('position', 'fixed')
+                .css('bottom', newBottom)
+                .css('z-index', s.zIndex);
+
+              s.stickyElement.parent().addClass(s.className);
+
+              if (s.currentBottom === null) {
+                s.stickyElement.trigger('sticky-start', [s]);
+              } else {
+                // sticky is started but it have to be repositioned
+                s.stickyElement.trigger('sticky-update', [s]);
+              }
+
+              if (s.currentBottom === s.bottomSpacing && s.currentBottom > newBottom || s.currentBottom === null && newBottom < s.bottomSpacing) {
+                // just reached bottom || just started to stick but bottom is already reached
+                s.stickyElement.trigger('sticky-bottom-reached', [s]);
+              } else if(s.currentBottom !== null && newBottom === s.bottomSpacing && s.currentBottom < newBottom) {
+                // sticky is started && sticked at topSpacing && overflowing from top just finished
+                s.stickyElement.trigger('sticky-bottom-unreached', [s]);
+              }
+
+              s.currentBottom = newBottom;
+            }
+
+            // Check if sticky has reached end of container and stop sticking
+            var stickyWrapperContainer = s.stickyWrapper.parent();
+            var unstick = (s.stickyElement.offset().top + s.stickyElement.outerHeight() >= stickyWrapperContainer.offset().top + stickyWrapperContainer.outerHeight()) && (s.stickyElement.offset().top <= s.bottomSpacing);
+
+            if( unstick ) {
+              s.stickyElement
+                .css('position', 'absolute')
+                .css('top', 0)
+                .css('bottom', '')
+                .css('z-index', '');
+            } else {
+              s.stickyElement
+                .css('position', 'fixed')
+                .css('top', '')
+                .css('bottom', newBottom)
+                .css('z-index', s.zIndex);
+            }
           }
         }
       }
@@ -245,6 +338,7 @@
                 'width': '',
                 'position': '',
                 'top': '',
+                'bottom': '',
                 'float': '',
                 'z-index': ''
               })
